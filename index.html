@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRO STUDIO v5.0 | Professional Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; padding: 0.75rem; overflow: hidden;
+        }
+        .editor-font { font-family: 'JetBrains Mono', monospace; direction: ltr !important; text-align: left !important; }
+        
+        .glass-panel { 
+            background: rgba(15, 23, 42, 0.6); 
+            backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1.5rem;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* حاوية التمرير داخل المحرر */
+        #htmlEditor {
+            flex-1;
+            width: 100%;
+            overflow-y: auto; /* السماح بالنزول تحت */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+
+        /* تحويل التصميم للهاتف */
+        @media (max-width: 768px) {
+            #mainLayout { flex-direction: column !important; overflow-y: auto; }
+            #resizer { height: 10px; width: 100%; cursor: row-resize; }
+            #resizer::after { width: 40px; height: 4px; }
+            .glass-panel { min-height: 300px; }
+            body { overflow-y: auto; } /* السماح بتمرير الصفحة كلها في الهاتف */
+        }
+
+        #resizer { width: 12px; cursor: col-resize; display: flex; justify-content: center; align-items: center; z-index: 30; flex-shrink: 0; }
+        #resizer::after { content: ""; width: 4px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+        
+        #previewFrame { background: white; width: 100%; height: 100%; border: none; }
+        .dragging iframe { pointer-events: none; }
+        .btn-action:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="gap-3">
+
+    <header class="flex justify-between items-center px-2 mb-1 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="flex gap-1.5">
+                <div class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <h1 class="text-lg md:text-xl font-black italic tracking-tighter text-white">PRO STUDIO <span class="text-blue-300">v5.0</span></h1>
+        </div>
+        <div class="flex gap-2">
+            <button id="typeBtn" onclick="runAutoSimulation()" class="btn-action bg-white text-indigo-600 px-4 md:px-6 py-1 rounded-full text-xs md:text-sm font-bold shadow-lg">محاكاة</button>
+            <button onclick="clearAll()" class="btn-action bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-[10px] md:text-xs border border-white/10 text-white">مسح</button>
+        </div>
+    </header>
+
+    <main id="mainLayout" class="flex-1 flex gap-2 overflow-hidden">
+        
+        <div id="previewContainer" class="glass-panel flex-1">
+            <div class="bg-white/5 p-2 flex justify-between items-center border-b border-white/5 flex-shrink-0">
+                <button onclick="toggleFullscreen()" class="p-1 hover:bg-white/10 rounded text-white">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+                <div class="flex items-center gap-2 text-[10px] font-bold text-white/80">
+                    <span>المعاينة</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </div>
+            </div>
+            <div class="flex-1 relative bg-white overflow-hidden">
+                <iframe id="previewFrame"></iframe>
+                <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-white text-slate-400 pointer-events-none">
+                    <svg class="w-10 h-10 mb-2 opacity-20" fill="currentColor" viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                    <p class="font-bold text-xs">المعاينة ستظهر هنا</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="resizer"></div>
+
+        <div id="codeContainer" class="glass-panel flex-[1.2]">
+            <div class="bg-white/5 p-2 flex justify-between items-center border-b border-white/5 flex-shrink-0">
+                <div class="text-[9px] text-white/40 font-bold uppercase">Source Code</div>
+                <div class="text-[9px] font-bold text-blue-300">HTML &lt;/&gt;</div>
+            </div>
+            
+            <textarea id="htmlEditor" 
+                class="flex-1 bg-transparent p-4 outline-none resize-none text-sm editor-font text-blue-50 selection:bg-blue-500/30" 
+                placeholder="أكتب الكود هنا..." spellcheck="false"></textarea>
+            
+            <div class="bg-black/20 p-1.5 flex justify-between text-[9px] px-4 text-white/40 flex-shrink-0">
+                <span id="charCount">0 حرف</span>
+                <span id="lineCount">1 سطر</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const editor = document.getElementById('htmlEditor');
+        const preview = document.getElementById('previewFrame');
+        const placeholder = document.getElementById('placeholder');
+        const codeContainer = document.getElementById('codeContainer');
+        const previewContainer = document.getElementById('previewContainer');
+        const resizer = document.getElementById('resizer');
+        const mainLayout = document.getElementById('mainLayout');
+        const btn = document.getElementById('typeBtn');
+
+        // سحب ذكي (أفقي للكمبيوتر / عمودي للهاتف)
+        let isResizing = false;
+        resizer.addEventListener('mousedown', () => isResizing = true);
+        resizer.addEventListener('touchstart', () => isResizing = true);
+        document.addEventListener('mouseup', () => isResizing = false);
+        document.addEventListener('touchend', () => isResizing = false);
+
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('touchmove', (e) => handleResize(e.touches[0]));
+
+        function handleResize(e) {
+            if (!isResizing) return;
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                const pointerY = e.clientY - mainLayout.offsetTop;
+                const flex = pointerY / mainLayout.offsetHeight;
+                if (flex > 0.1 && flex < 0.9) {
+                    previewContainer.style.flex = flex;
+                    codeContainer.style.flex = 1 - flex;
+                }
+            } else {
+                const pointerX = e.clientX - mainLayout.offsetLeft;
+                const flex = pointerX / mainLayout.offsetWidth;
+                if (flex > 0.1 && flex < 0.9) {
+                    previewContainer.style.flex = flex;
+                    codeContainer.style.flex = 1 - flex;
+                }
+            }
+        }
+
+        function updatePreview() {
+            const code = editor.value;
+            placeholder.style.display = code.length > 0 ? 'none' : 'flex';
+            const doc = preview.contentDocument || preview.contentWindow.document;
+            doc.open();
+            doc.write(`<!DOCTYPE html><html><head><style>body{margin:0;padding:10px;font-family:sans-serif;}</style></head><body>${code}</body></html>`);
+            doc.close();
+            document.getElementById('charCount').innerText = `${code.length} حرف`;
+            document.getElementById('lineCount').innerText = `${code.split('\n').length} سطر`;
+        }
+
+        editor.addEventListener('input', updatePreview);
+
+        async function runAutoSimulation() {
+            if (window.isSimulating) return;
+            const fullCode = editor.value;
+            if (!fullCode) return;
+            window.isSimulating = true;
+            btn.disabled = true;
+            editor.value = "";
+            for (let i = 0; i < fullCode.length; i++) {
+                if (!window.isSimulating) break; 
+                editor.value += fullCode[i];
+                if (i % 5 === 0) updatePreview();
+                editor.scrollTop = editor.scrollHeight; // التمرير التلقائي للأسفل أثناء المحاكاة
+                await new Promise(r => setTimeout(r, 5));
+            }
+            window.isSimulating = false;
+            btn.disabled = false;
+            updatePreview();
+        }
+
+        function clearAll() {
+            if(confirm('مسح الكل؟')) {
+                editor.value = "";
+                updatePreview();
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) previewContainer.requestFullscreen();
+            else document.exitFullscreen();
+        }
+    </script>
+</body>
+</html>
